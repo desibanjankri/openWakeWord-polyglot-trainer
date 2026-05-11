@@ -1,0 +1,25 @@
+# ── PyTorch (CPU build — sufficient for openWakeWord training) ─────────────────
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch
+torchaudio
+
+# ── ONNX ──────────────────────────────────────────────────────────────────────
+onnx
+onnxruntime
+
+# ── Audio I/O and processing ──────────────────────────────────────────────────
+soundfile
+pydub
+librosa
+scipy
+numpy
+
+# ── Web UI ────────────────────────────────────────────────────────────────────
+flask
+
+# ── Data augmentation ─────────────────────────────────────────────────────────
+torch-audiomentations
+audiomentations
+
+# ── openWakeWord is NOT listed here.
+# install.sh clones it from source and applies WSL compatibility patches.

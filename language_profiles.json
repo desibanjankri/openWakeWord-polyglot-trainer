@@ -1,0 +1,14 @@
+{
+    "english": {
+        "display_name": "English",
+        "supports_variations": false,
+        "requires_custom_negatives": false,
+        "description": "Standard single-phrase wake word. Record one consistent pronunciation."
+    },
+    "punjabi": {
+        "display_name": "Punjabi",
+        "supports_variations": true,
+        "requires_custom_negatives": true,
+        "description": "Supports morphological variations (e.g. Billah → Billeya, Billeh). Record yourself cycling through all variations in one long clip. Also requires hard-negative recordings of similar-sounding words to prevent false positives."
+    }
+}

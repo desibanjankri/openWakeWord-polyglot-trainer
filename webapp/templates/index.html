@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wake-Word Factory</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #f0f2f5;
+  color: #1a1a1a;
+  margin: 0;
+  padding: 0 0 60px;
+}
+h1 { font-size: 1.35rem; margin: 0 0 2px; }
+h2 { font-size: 0.95rem; font-weight: 600; margin: 0 0 12px; color: #333; }
+.subtitle { color: #666; font-size: 0.83rem; margin: 0; }
+
+/* ── topbar / tabs ── */
+.topbar {
+  background: #fff;
+  border-bottom: 1px solid #e0e0e0;
+  padding: 14px 24px 0;
+  position: sticky; top: 0; z-index: 100;
+}
+.topbar-title { display: flex; align-items: baseline; gap: 14px; margin-bottom: 10px; }
+#tab-bar { display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; }
+#tab-bar::-webkit-scrollbar { display: none; }
+.tab-btn {
+  background: none; border: none; border-bottom: 3px solid transparent;
+  padding: 8px 18px 10px; font-size: 0.88rem; font-weight: 500;
+  color: #666; cursor: pointer; white-space: nowrap;
+  transition: color .15s, border-color .15s;
+}
+.tab-btn:hover { color: #333; }
+.tab-btn.active { color: #0066cc; border-bottom-color: #0066cc; }
+.tab-btn.tab-new { color: #2a9d5c; font-weight: 600; margin-left: 8px; }
+.tab-btn.tab-new:hover { color: #1f7a47; }
+
+/* ── panels ── */
+.container { max-width: 860px; margin: 0 auto; padding: 24px 16px 0; }
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* ── cards ── */
+.card {
+  background: #fff; border-radius: 10px;
+  padding: 18px 22px; margin-bottom: 18px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.07);
+}
+
+/* ── persona header ── */
+.persona-header {
+  display: flex; align-items: flex-start;
+  justify-content: space-between; flex-wrap: wrap; gap: 12px;
+}
+.persona-title { font-size: 1.15rem; font-weight: 700; text-transform: capitalize; }
+.persona-phrase { font-size: 0.8rem; color: #888; margin-top: 2px; }
+.lang-badge {
+  display: inline-block; font-size: 0.7rem; font-weight: 600;
+  background: #e8f0fe; color: #1a56cc;
+  border-radius: 4px; padding: 1px 8px; margin-left: 6px; vertical-align: middle;
+}
+.stat-row { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 8px; }
+.stat { font-size: 0.83rem; }
+.stat-label { color: #888; }
+.stat-val { font-weight: 600; }
+.metrics-inline { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px; }
+.metric-chip {
+  background: #edfaf2; border-radius: 6px;
+  padding: 3px 10px; font-size: 0.78rem; color: #1a6640; font-weight: 600;
+}
+.no-model { font-size: 0.8rem; color: #bbb; margin-top: 6px; }
+
+/* ── upload zones ── */
+.drop-zone {
+  border: 2px dashed #bbb; border-radius: 8px;
+  padding: 24px; text-align: center; color: #888;
+  cursor: pointer; transition: border-color .2s, background .2s; font-size: 0.86rem;
+}
+.drop-zone.drag-over { border-color: #0066cc; background: #e8f0ff; color: #0066cc; }
+.drop-zone.neg { border-color: #e8a020; }
+.drop-zone.neg:hover, .drop-zone.neg.drag-over { border-color: #c87d10; background: #fff8ec; color: #a06010; }
+.drop-zone p { margin: 4px 0 0; font-size: 0.76rem; }
+.file-input-hidden { display: none; }
+
+.dual-upload { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 600px) { .dual-upload { grid-template-columns: 1fr; } }
+.upload-label {
+  font-size: 0.8rem; font-weight: 600; margin-bottom: 6px;
+  display: flex; align-items: center; gap: 6px;
+}
+.dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.dot-green  { background: #2a9d5c; }
+.dot-orange { background: #e8a020; }
+
+/* ── file list ── */
+.file-list { list-style: none; margin: 0; padding: 0; }
+.file-list li {
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px 0; border-bottom: 1px solid #f2f2f2; font-size: 0.86rem;
+}
+.file-list li:last-child { border-bottom: none; }
+.file-name { flex: 1; font-weight: 500; word-break: break-all; }
+.file-meta { color: #999; font-size: 0.77rem; white-space: nowrap; }
+.btn-del {
+  background: none; border: 1px solid #e55; color: #c44;
+  border-radius: 5px; padding: 2px 8px; cursor: pointer; font-size: 0.76rem;
+}
+.btn-del:hover { background: #fef0f0; }
+.empty { color: #bbb; font-size: 0.83rem; font-style: italic; padding: 4px 0; }
+
+/* ── slicer ── */
+details summary {
+  cursor: pointer; font-weight: 600; font-size: 0.83rem;
+  color: #555; user-select: none; padding: 2px 0;
+}
+.params-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 10px; margin-top: 12px;
+}
+.param label { display: block; font-size: 0.74rem; color: #666; margin-bottom: 3px; }
+.param input[type=number] {
+  width: 100%; border: 1px solid #ccc; border-radius: 6px;
+  padding: 5px 8px; font-size: 0.86rem;
+}
+.slice-result {
+  margin-top: 10px; padding: 10px 14px;
+  background: #f6faf2; border-left: 3px solid #4a9; border-radius: 4px;
+  font-size: 0.84rem; line-height: 1.7;
+}
+.slice-result.neg-result { background: #fff8ec; border-color: #e8a020; }
+.slice-result.error      { background: #fff5f5; border-color: #e55; }
+.preview-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+.preview-item { font-size: 0.74rem; color: #555; }
+.preview-item audio { display: block; margin-top: 3px; }
+
+/* ── section divider for dual drop zones ── */
+.dual-dz-section { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+@media (max-width: 600px) { .dual-dz-section { grid-template-columns: 1fr; } }
+
+/* ── buttons ── */
+.btn {
+  border: none; border-radius: 7px; cursor: pointer;
+  font-size: 0.86rem; font-weight: 600; padding: 8px 18px;
+  transition: opacity .15s;
+}
+.btn:disabled { opacity: .4; cursor: not-allowed; }
+.btn-primary { background: #0066cc; color: #fff; }
+.btn-primary:hover:not(:disabled) { background: #0055aa; }
+.btn-green   { background: #2a9d5c; color: #fff; }
+.btn-green:hover:not(:disabled) { background: #228a4f; }
+.btn-purple  { background: #6c5ce7; color: #fff; margin-top: 12px; }
+.btn-purple:hover:not(:disabled) { background: #5a4dd0; }
+.btn-orange  { background: #e8a020; color: #fff; margin-top: 12px; }
+.btn-orange:hover:not(:disabled) { background: #c87d10; }
+.btn-download {
+  border: 1px solid #0066cc; background: none; color: #0066cc;
+  border-radius: 7px; padding: 7px 16px; font-size: 0.83rem; font-weight: 600;
+  cursor: pointer; white-space: nowrap;
+}
+.btn-download:hover { background: #e8f0ff; }
+.btn-download:disabled { opacity: .4; cursor: not-allowed; }
+
+/* ── train log ── */
+.train-log {
+  background: #0d1117; color: #c9d1d9; font-family: monospace;
+  font-size: 0.74rem; line-height: 1.5; padding: 10px 12px; border-radius: 6px;
+  height: 280px; overflow-y: auto; white-space: pre-wrap; word-break: break-all;
+  margin-top: 12px; display: none;
+}
+.metrics-box {
+  margin-top: 12px; padding: 12px 16px;
+  background: #edfaf2; border-left: 3px solid #2a9d5c; border-radius: 4px;
+  font-size: 0.86rem; line-height: 1.8; display: none;
+}
+
+/* ── model history ── */
+.model-row {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 9px 0; border-bottom: 1px solid #f2f2f2; font-size: 0.84rem;
+}
+.model-row:last-child { border-bottom: none; }
+.model-name { font-weight: 600; word-break: break-all; flex: 1; }
+.badge-latest {
+  background: #2a9d5c; color: #fff;
+  border-radius: 4px; padding: 1px 7px; font-size: 0.68rem; white-space: nowrap;
+}
+.model-metrics { color: #555; font-size: 0.78rem; }
+.model-meta { color: #aaa; font-size: 0.74rem; white-space: nowrap; }
+
+/* ── spinner ── */
+.spinner {
+  display: inline-block; width: 13px; height: 13px;
+  border: 2px solid #ffffff55; border-top-color: #fff;
+  border-radius: 50%; animation: spin .7s linear infinite;
+  vertical-align: middle; margin-right: 5px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── modal ── */
+#modal-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.45);
+  align-items: center; justify-content: center; z-index: 200;
+}
+.modal {
+  background: #fff; border-radius: 12px;
+  padding: 28px 32px; max-width: 460px; width: 92%;
+  box-shadow: 0 8px 32px rgba(0,0,0,.18);
+  max-height: 90vh; overflow-y: auto;
+}
+.modal h2 { font-size: 1.05rem; margin: 0 0 16px; }
+.modal label { display: block; font-size: 0.78rem; color: #555; margin-bottom: 4px; font-weight: 600; }
+.modal input[type=text], .modal select {
+  width: 100%; border: 1px solid #ccc; border-radius: 7px;
+  padding: 9px 12px; font-size: 0.92rem; margin-bottom: 14px;
+}
+.modal input[type=text]:focus, .modal select:focus {
+  outline: 2px solid #0066cc; border-color: transparent;
+}
+.modal .hint {
+  font-size: 0.78rem; color: #888; margin: -10px 0 14px;
+  padding: 8px 12px; background: #f8f8f8; border-radius: 6px; line-height: 1.5;
+}
+.variation-list { margin-bottom: 12px; }
+.variation-row { display: flex; gap: 8px; margin-bottom: 8px; }
+.variation-row input { flex: 1; margin-bottom: 0; }
+.btn-rm-var {
+  background: none; border: 1px solid #ddd; color: #999;
+  border-radius: 6px; padding: 0 10px; cursor: pointer; font-size: 1rem; flex-shrink: 0;
+}
+.btn-rm-var:hover { border-color: #e55; color: #c44; }
+.btn-add-var {
+  background: none; border: 1px dashed #2a9d5c; color: #2a9d5c;
+  border-radius: 6px; padding: 6px 14px; cursor: pointer;
+  font-size: 0.82rem; font-weight: 600; margin-bottom: 14px;
+}
+.btn-add-var:hover { background: #edfaf2; }
+.modal-error { color: #c44; font-size: 0.8rem; margin-bottom: 10px; min-height: 16px; }
+.modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 4px; }
+.btn-ghost {
+  background: none; border: 1px solid #ccc; color: #555;
+  border-radius: 7px; padding: 8px 16px; font-size: 0.86rem; font-weight: 600; cursor: pointer;
+}
+.btn-ghost:hover { background: #f5f5f5; }
+
+/* ── empty state ── */
+.empty-state { text-align: center; padding: 60px 20px; color: #aaa; font-size: 0.95rem; }
+.empty-state .big { font-size: 2.5rem; margin-bottom: 12px; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-title">
+    <h1>Wake-Word Factory</h1>
+    <p class="subtitle">Multi-persona · Polyglot</p>
+  </div>
+  <div id="tab-bar">
+    {% for p in personas %}
+    <button class="tab-btn{% if loop.first %} active{% endif %}"
+            data-persona="{{ p.persona_id }}"
+            onclick="switchTab('{{ p.persona_id }}')">
+      {{ p.display_name }}
+      {% if p.training_busy %}<span class="spinner" style="border-top-color:#0066cc;border-color:#0066cc33"></span>{% endif %}
+    </button>
+    {% endfor %}
+    <button id="tab-new-btn" class="tab-btn tab-new" onclick="openNewPersonaModal()">+ New Persona</button>
+  </div>
+</div>
+
+<div class="container">
+  <div id="tab-panels">
+
+  {% if not personas %}
+  <div class="empty-state">
+    <div class="big">🎤</div>
+    No personas yet — click <strong>+ New Persona</strong> to get started.
+  </div>
+  {% endif %}
+
+  {% for p in personas %}
+  <div class="tab-panel{% if loop.first %} active{% endif %}" id="panel-{{ p.persona_id }}">
+
+    <!-- ── header ── -->
+    <div class="card">
+      <div class="persona-header">
+        <div>
+          <div class="persona-title">
+            {{ p.display_name }}
+            <span class="lang-badge">{{ p.language }}</span>
+          </div>
+          {% if p.target_phrases | length > 1 %}
+          <div class="persona-phrase">
+            phrases: {% for ph in p.target_phrases %}"{{ ph }}"{% if not loop.last %}, {% endif %}{% endfor %}
+          </div>
+          {% else %}
+          <div class="persona-phrase">wake phrase: "{{ p.display_name }}"</div>
+          {% endif %}
+          <div class="stat-row">
+            <div class="stat">
+              <span class="stat-label">Positive clips: </span>
+              <span class="stat-val" id="clip-count-{{ p.persona_id }}">{{ p.train_clips }} train / {{ p.test_clips }} test</span>
+            </div>
+            {% if p.requires_custom_negatives %}
+            <div class="stat">
+              <span class="stat-label">Adversarial clips: </span>
+              <span class="stat-val" id="neg-count-{{ p.persona_id }}">{{ p.neg_train_custom }} custom</span>
+            </div>
+            {% endif %}
+            {% if p.last_trained %}
+            <div class="stat">
+              <span class="stat-label">Last trained: </span>
+              <span class="stat-val">{{ p.last_trained }}</span>
+            </div>
+            {% endif %}
+          </div>
+          {% if p.metrics %}
+          <div class="metrics-inline">
+            <span class="metric-chip">Recall {{ p.metrics.recall }}</span>
+            {% if p.metrics.fp_hr is not none %}<span class="metric-chip">FP/hr {{ p.metrics.fp_hr }}</span>{% endif %}
+            {% if p.metrics.accuracy is not none %}<span class="metric-chip">Accuracy {{ p.metrics.accuracy }}</span>{% endif %}
+          </div>
+          {% else %}
+          <div class="no-model">No training metrics yet.</div>
+          {% endif %}
+        </div>
+        <button class="btn-download" id="dl-btn-{{ p.persona_id }}"
+                {% if not p.onnx_path %}disabled title="No model trained yet"{% endif %}
+                onclick="window.location='/download/{{ p.persona_id }}'">Download Model</button>
+      </div>
+    </div>
+
+    <!-- ── upload ── -->
+    <div class="card">
+      <h2>1. Upload Recording{{ 's' if p.requires_custom_negatives else '' }}</h2>
+      {% if p.requires_custom_negatives %}
+      <div class="dual-upload">
+        <div>
+          <div class="upload-label"><span class="dot dot-green"></span>Positive Audio (wake words)</div>
+          <div class="drop-zone" id="drop-zone-{{ p.persona_id }}">
+            <strong>Drag &amp; drop here</strong>
+            <p>Say the wake phrase variations naturally in one long recording.</p>
+            <input class="file-input-hidden" id="file-input-{{ p.persona_id }}"
+                   type="file" multiple accept=".wav,.mp3,.mp4,.m4a,.flac,.ogg">
+          </div>
+        </div>
+        <div>
+          <div class="upload-label"><span class="dot dot-orange"></span>Adversarial Negatives (similar-sounding)</div>
+          <div class="drop-zone neg" id="drop-zone-neg-{{ p.persona_id }}">
+            <strong>Drag &amp; drop here</strong>
+            <p>Words that sound similar but should NOT trigger the wake word.</p>
+            <input class="file-input-hidden" id="file-input-neg-{{ p.persona_id }}"
+                   type="file" multiple accept=".wav,.mp3,.mp4,.m4a,.flac,.ogg">
+          </div>
+        </div>
+      </div>
+      {% else %}
+      <div class="drop-zone" id="drop-zone-{{ p.persona_id }}">
+        <strong>Drag &amp; drop audio here</strong>
+        <p>or click to browse &nbsp;·&nbsp; .wav .mp3 .mp4 .m4a .flac</p>
+        <input class="file-input-hidden" id="file-input-{{ p.persona_id }}"
+               type="file" multiple accept=".wav,.mp3,.mp4,.m4a,.flac,.ogg">
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- ── drop zone files ── -->
+    <div class="card">
+      <h2>2. Staged Recordings</h2>
+      {% if p.requires_custom_negatives %}
+      <div class="dual-dz-section">
+        <div>
+          <div class="upload-label"><span class="dot dot-green"></span>Positive</div>
+          <ul class="file-list" id="dz-list-{{ p.persona_id }}">
+            {% if p.dropzone_files %}
+              {% for f in p.dropzone_files %}
+              <li id="dzf-{{ p.persona_id }}-{{ f.name | replace('.', '-') | replace(' ', '-') | replace(':', '-') }}">
+                <span class="file-name">{{ f.name }}</span>
+                <span class="file-meta">{{ f.size }}</span>
+                <button class="btn-del" onclick="deleteFile('{{ p.persona_id }}','{{ f.name }}')">×</button>
+              </li>
+              {% endfor %}
+            {% else %}
+              <li class="empty">None yet.</li>
+            {% endif %}
+          </ul>
+        </div>
+        <div>
+          <div class="upload-label"><span class="dot dot-orange"></span>Adversarial</div>
+          <ul class="file-list" id="dz-neg-list-{{ p.persona_id }}">
+            {% if p.neg_dropzone_files %}
+              {% for f in p.neg_dropzone_files %}
+              <li id="dzfn-{{ p.persona_id }}-{{ f.name | replace('.', '-') | replace(' ', '-') | replace(':', '-') }}">
+                <span class="file-name">{{ f.name }}</span>
+                <span class="file-meta">{{ f.size }}</span>
+                <button class="btn-del" onclick="deleteNegFile('{{ p.persona_id }}','{{ f.name }}')">×</button>
+              </li>
+              {% endfor %}
+            {% else %}
+              <li class="empty">None yet.</li>
+            {% endif %}
+          </ul>
+        </div>
+      </div>
+      {% else %}
+      <ul class="file-list" id="dz-list-{{ p.persona_id }}">
+        {% if p.dropzone_files %}
+          {% for f in p.dropzone_files %}
+          <li id="dzf-{{ p.persona_id }}-{{ f.name | replace('.', '-') | replace(' ', '-') | replace(':', '-') }}">
+            <span class="file-name">{{ f.name }}</span>
+            <span class="file-meta">{{ f.size }} &nbsp; {{ f.mtime }}</span>
+            <button class="btn-del" onclick="deleteFile('{{ p.persona_id }}','{{ f.name }}')">delete</button>
+          </li>
+          {% endfor %}
+        {% else %}
+          <li class="empty">No recordings yet — upload one above.</li>
+        {% endif %}
+      </ul>
+      {% endif %}
+    </div>
+
+    <!-- ── slice ── -->
+    <div class="card">
+      <h2>3. Slice into Clips</h2>
+      <details>
+        <summary>Slicer settings (defaults are usually fine)</summary>
+        <div class="params-grid">
+          <div class="param"><label>Silence threshold (dBFS)</label>
+            <input type="number" id="silence_thresh-{{ p.persona_id }}" value="-40" max="0"></div>
+          <div class="param"><label>Min silence (ms)</label>
+            <input type="number" id="min_silence-{{ p.persona_id }}" value="700" min="100"></div>
+          <div class="param"><label>Min clip (ms)</label>
+            <input type="number" id="min_clip-{{ p.persona_id }}" value="500" min="100"></div>
+          <div class="param"><label>Max clip (ms)</label>
+            <input type="number" id="max_clip-{{ p.persona_id }}" value="3000" min="500"></div>
+          <div class="param"><label>Keep silence (ms)</label>
+            <input type="number" id="keep_silence-{{ p.persona_id }}" value="200" min="0"></div>
+        </div>
+      </details>
+
+      {% if p.requires_custom_negatives %}
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-start">
+        <div>
+          <button class="btn btn-purple" id="slice-btn-{{ p.persona_id }}"
+                  {% if p.training_busy %}disabled{% endif %}
+                  onclick="runSlice('{{ p.persona_id }}','positive')">Slice Positive</button>
+          <div class="slice-result" id="slice-result-{{ p.persona_id }}" style="display:none"></div>
+        </div>
+        <div>
+          <button class="btn btn-orange" id="slice-neg-btn-{{ p.persona_id }}"
+                  {% if p.training_busy %}disabled{% endif %}
+                  onclick="runSlice('{{ p.persona_id }}','negative')">Slice Adversarial</button>
+          <div class="slice-result neg-result" id="slice-neg-result-{{ p.persona_id }}" style="display:none"></div>
+        </div>
+      </div>
+      {% else %}
+      <button class="btn btn-purple" id="slice-btn-{{ p.persona_id }}"
+              {% if p.training_busy %}disabled{% endif %}
+              onclick="runSlice('{{ p.persona_id }}','positive')">Slice files</button>
+      <div class="slice-result" id="slice-result-{{ p.persona_id }}" style="display:none"></div>
+      {% endif %}
+
+      <div class="preview-row" id="preview-{{ p.persona_id }}">
+        {% if p.train_clips > 0 %}
+        <p style="font-size:.76rem;color:#999;width:100%;margin:0 0 4px">
+          Current clips in positive_train/: {{ p.train_clips }}
+        </p>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- ── train ── -->
+    <div class="card">
+      <h2>4. Train Model</h2>
+      <p style="font-size:.81rem;color:#777;margin:0 0 12px">
+        Uses all clips in <code>positive_train/</code>
+        {% if p.requires_custom_negatives %} and <code>negative_train/</code>{% endif %}.
+        Takes ~6 minutes on CPU.
+      </p>
+      {% if p.training_busy %}
+      <button class="btn btn-green" disabled><span class="spinner"></span>Training in progress…</button>
+      <p style="font-size:.8rem;color:#999;margin-top:8px">Reload the page to reconnect to the live log.</p>
+      {% else %}
+      <button class="btn btn-green" id="train-btn-{{ p.persona_id }}"
+              {% if p.train_clips == 0 %}disabled title="Slice some recordings first"{% endif %}
+              onclick="startTraining('{{ p.persona_id }}')">Start training</button>
+      {% endif %}
+      <div class="train-log"  id="train-log-{{ p.persona_id }}"></div>
+      <div class="metrics-box" id="metrics-box-{{ p.persona_id }}"></div>
+    </div>
+
+    <!-- ── model history ── -->
+    <div class="card">
+      <h2>5. Model History</h2>
+      {% if p.models %}
+        {% for m in p.models %}
+        <div class="model-row">
+          <div style="flex:1;min-width:0">
+            <div class="model-name">
+              {{ m.name }}
+              {% if m.latest %}<span class="badge-latest">latest</span>{% endif %}
+            </div>
+            {% if m.metrics %}
+            <div class="model-metrics">
+              Recall&nbsp;<strong>{{ m.metrics.recall }}</strong> &nbsp;·&nbsp;
+              FP/hr&nbsp;<strong>{{ m.metrics.fp_hr }}</strong> &nbsp;·&nbsp;
+              Acc&nbsp;<strong>{{ m.metrics.accuracy }}</strong>
+            </div>
+            {% else %}
+            <div class="model-metrics" style="color:#ccc">no metrics on record</div>
+            {% endif %}
+          </div>
+          <div class="model-meta">{{ m.size }}<br>{{ m.mtime }}</div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <p class="empty">No trained models yet.</p>
+      {% endif %}
+    </div>
+
+  </div><!-- /tab-panel -->
+  {% endfor %}
+  </div><!-- /tab-panels -->
+</div><!-- /container -->
+
+<!-- ── new persona modal ── -->
+<div id="modal-overlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <h2>Create New Persona</h2>
+
+    <label for="modal-lang">Language Profile</label>
+    <select id="modal-lang" onchange="onLangChange()">
+      {% for key, profile in language_profiles.items() %}
+      <option value="{{ key }}"
+              data-supports-variations="{{ 'true' if profile.supports_variations else 'false' }}"
+              data-requires-neg="{{ 'true' if profile.requires_custom_negatives else 'false' }}"
+              data-description="{{ profile.description }}">
+        {{ profile.display_name }}
+      </option>
+      {% endfor %}
+    </select>
+
+    <div id="lang-hint" class="hint" style="display:none"></div>
+
+    <label for="new-phrase-input">Wake Phrase <span id="primary-label" style="display:none">(Primary)</span></label>
+    <input type="text" id="new-phrase-input"
+           placeholder="e.g. Hey Jarvis"
+           onkeydown="if(event.key==='Enter' && !modalHasVariations())submitNewPersona()">
+
+    <!-- variation builder — shown for polyglot profiles -->
+    <div id="variation-section" style="display:none">
+      <label>Additional Variations</label>
+      <div class="variation-list" id="variation-list"></div>
+      <button class="btn-add-var" type="button" onclick="addVariationRow()">+ Add Variation</button>
+      <div class="hint" id="variation-hint"></div>
+    </div>
+
+    <div class="modal-error" id="modal-error"></div>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" id="modal-create-btn" onclick="submitNewPersona()">Create</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── language profiles (injected from server) ──────────────────────────────────
+const LANG_PROFILES = {{ language_profiles | tojson }};
+
+// ── tab switching ─────────────────────────────────────────────────────────────
+function switchTab(personaId) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  const btn = document.querySelector(`[data-persona="${personaId}"]`);
+  if (btn) btn.classList.add('active');
+  const panel = document.getElementById(`panel-${personaId}`);
+  if (panel) panel.classList.add('active');
+}
+
+// ── upload zones ──────────────────────────────────────────────────────────────
+function setupUploadZone(personaId, negMode) {
+  const zoneId  = negMode ? `drop-zone-neg-${personaId}` : `drop-zone-${personaId}`;
+  const inputId = negMode ? `file-input-neg-${personaId}` : `file-input-${personaId}`;
+  const zone  = document.getElementById(zoneId);
+  const input = document.getElementById(inputId);
+  if (!zone || !input) return;
+
+  zone.addEventListener('click', () => input.click());
+  input.addEventListener('change', () => {
+    if (input.files.length) doUpload(personaId, input.files, negMode);
+  });
+  ['dragenter', 'dragover'].forEach(evt =>
+    zone.addEventListener(evt, e => { e.preventDefault(); zone.classList.add('drag-over'); })
+  );
+  ['dragleave', 'dragend'].forEach(evt =>
+    zone.addEventListener(evt, () => zone.classList.remove('drag-over'))
+  );
+  zone.addEventListener('drop', e => {
+    e.preventDefault();
+    zone.classList.remove('drag-over');
+    if (e.dataTransfer.files.length) doUpload(personaId, e.dataTransfer.files, negMode);
+  });
+}
+
+async function doUpload(personaId, files, negMode) {
+  const zone = document.getElementById(negMode ? `drop-zone-neg-${personaId}` : `drop-zone-${personaId}`);
+  if (zone) zone.style.opacity = '0.5';
+  const fd = new FormData();
+  Array.from(files).forEach(f => fd.append('files', f));
+  const url = negMode ? `/upload_neg/${personaId}` : `/upload/${personaId}`;
+  try {
+    const res  = await fetch(url, { method: 'POST', body: fd });
+    const data = await res.json();
+    if (data.ok && data.saved.length) {
+      data.saved.forEach(f => addDropzoneRow(personaId, f, negMode));
+    }
+  } finally {
+    if (zone) zone.style.opacity = '';
+  }
+}
+
+function addDropzoneRow(personaId, f, negMode) {
+  const listId = negMode ? `dz-neg-list-${personaId}` : `dz-list-${personaId}`;
+  const list   = document.getElementById(listId);
+  if (!list) return;
+  const empty = list.querySelector('.empty');
+  if (empty) empty.remove();
+  const prefix = negMode ? 'dzfn' : 'dzf';
+  const safeId = f.name.replace(/[^a-zA-Z0-9]/g, '-');
+  const li = document.createElement('li');
+  li.id = `${prefix}-${personaId}-${safeId}`;
+  const delFn = negMode ? `deleteNegFile` : `deleteFile`;
+  li.innerHTML =
+    `<span class="file-name">${esc(f.name)}</span>` +
+    `<span class="file-meta">${esc(f.size)}</span>` +
+    `<button class="btn-del" onclick="${delFn}('${esc(personaId)}','${esc(f.name)}')">×</button>`;
+  list.appendChild(li);
+}
+
+async function deleteFile(personaId, filename) {
+  if (!confirm(`Delete ${filename}?`)) return;
+  const fd = new FormData(); fd.append('filename', filename);
+  await fetch(`/delete/${personaId}`, { method: 'POST', body: fd });
+  removeDropzoneRow('dzf', personaId, filename, 'dz-list-' + personaId, 'No recordings yet — upload one above.');
+}
+
+async function deleteNegFile(personaId, filename) {
+  if (!confirm(`Delete ${filename}?`)) return;
+  const fd = new FormData(); fd.append('filename', filename);
+  await fetch(`/delete_neg/${personaId}`, { method: 'POST', body: fd });
+  removeDropzoneRow('dzfn', personaId, filename, 'dz-neg-list-' + personaId, 'None yet.');
+}
+
+function removeDropzoneRow(prefix, personaId, filename, listId, emptyMsg) {
+  const safeId = filename.replace(/[^a-zA-Z0-9]/g, '-');
+  const item   = document.getElementById(`${prefix}-${personaId}-${safeId}`);
+  if (item) item.remove();
+  const list = document.getElementById(listId);
+  if (list && !list.querySelector('li:not(.empty)')) {
+    const li = document.createElement('li');
+    li.className = 'empty'; li.textContent = emptyMsg;
+    list.appendChild(li);
+  }
+}
+
+// ── slicer ────────────────────────────────────────────────────────────────────
+function pval(personaId, name) {
+  const el = document.getElementById(`${name}-${personaId}`);
+  return el ? el.value : '';
+}
+
+async function runSlice(personaId, mode) {
+  const isNeg = mode === 'negative';
+  const btnId = isNeg ? `slice-neg-btn-${personaId}` : `slice-btn-${personaId}`;
+  const resId = isNeg ? `slice-neg-result-${personaId}` : `slice-result-${personaId}`;
+  const btn   = document.getElementById(btnId);
+  const res   = document.getElementById(resId);
+  if (!btn) return;
+  btn.disabled = true;
+  btn.textContent = 'Slicing…';
+  if (res) res.style.display = 'none';
+
+  const body = new URLSearchParams({
+    silence_thresh: pval(personaId, 'silence_thresh'),
+    min_silence:    pval(personaId, 'min_silence'),
+    min_clip:       pval(personaId, 'min_clip'),
+    max_clip:       pval(personaId, 'max_clip'),
+    keep_silence:   pval(personaId, 'keep_silence'),
+  });
+
+  const url = isNeg ? `/slice_neg/${personaId}` : `/slice/${personaId}`;
+  try {
+    const r = await fetch(url, { method: 'POST', body });
+    const d = await r.json();
+    btn.disabled = false;
+    btn.textContent = isNeg ? 'Slice Adversarial' : (document.getElementById(`slice-neg-btn-${personaId}`) ? 'Slice Positive' : 'Slice files');
+
+    if (d.error) {
+      if (res) { res.className = (isNeg ? 'slice-result neg-result' : 'slice-result') + ' error'; res.textContent = d.error; res.style.display = 'block'; }
+      return;
+    }
+
+    if (res) {
+      res.className = isNeg ? 'slice-result neg-result' : 'slice-result';
+      res.innerHTML = `<strong>Generated ${d.accepted} clips</strong> — ${d.n_train} ${isNeg ? 'adversarial' : 'train'} / ${d.n_test} test<br>Rejected: ${d.rejected_short} too short · ${d.rejected_long} too long`;
+      res.style.display = 'block';
+    }
+
+    if (!isNeg) {
+      const cc = document.getElementById(`clip-count-${personaId}`);
+      if (cc) cc.textContent = `${d.n_train} train / ${d.n_test} test`;
+      const tb = document.getElementById(`train-btn-${personaId}`);
+      if (tb && d.n_train > 0) { tb.disabled = false; tb.title = ''; }
+
+      const prev = document.getElementById(`preview-${personaId}`);
+      if (prev && d.preview_clips && d.preview_clips.length) {
+        prev.innerHTML = '<p style="font-size:.76rem;color:#999;width:100%;margin:0 0 4px">Preview:</p>' +
+          d.preview_clips.map(name =>
+            `<div class="preview-item">${esc(name)}<audio controls src="/audio/${personaId}/${encodeURIComponent(name)}"></audio></div>`
+          ).join('');
+      }
+    } else {
+      const nc = document.getElementById(`neg-count-${personaId}`);
+      if (nc && d.neg_train_custom !== undefined) nc.textContent = `${d.neg_train_custom} custom`;
+    }
+  } catch (err) {
+    btn.disabled = false;
+    btn.textContent = isNeg ? 'Slice Adversarial' : 'Slice files';
+    if (res) { res.className = 'slice-result error'; res.textContent = 'Request failed: ' + err; res.style.display = 'block'; }
+  }
+}
+
+// ── training SSE ──────────────────────────────────────────────────────────────
+function startTraining(personaId) {
+  const btn     = document.getElementById(`train-btn-${personaId}`);
+  const log     = document.getElementById(`train-log-${personaId}`);
+  const metrics = document.getElementById(`metrics-box-${personaId}`);
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Training…';
+  log.textContent = '';
+  log.style.display = 'block';
+  metrics.style.display = 'none';
+
+  const es = new EventSource(`/train_stream/${personaId}`);
+  es.onmessage = function(e) {
+    const data = JSON.parse(e.data);
+    if (data.line !== undefined) { log.textContent += data.line; log.scrollTop = log.scrollHeight; }
+    if (data.done) {
+      es.close();
+      btn.disabled = false;
+      btn.textContent = 'Start training';
+      const dl = document.getElementById(`dl-btn-${personaId}`);
+      if (dl) { dl.disabled = false; dl.title = ''; }
+      if (data.metrics) {
+        const m = data.metrics;
+        metrics.innerHTML =
+          `<strong>Training complete</strong><br>` +
+          `Recall&nbsp;<strong>${m.recall ?? '—'}</strong> &nbsp;·&nbsp; ` +
+          `FP/hr&nbsp;<strong>${m.fp_hr ?? '—'}</strong> &nbsp;·&nbsp; ` +
+          `Accuracy&nbsp;<strong>${m.accuracy ?? '—'}</strong><br>` +
+          `<span style="font-size:.78rem;color:#555">Reload the page to update model history.</span>`;
+        metrics.style.display = 'block';
+      }
+    }
+  };
+  es.onerror = function() {
+    es.close();
+    btn.disabled = false;
+    btn.textContent = 'Start training';
+    log.textContent += '\n[connection closed]';
+  };
+}
+
+// ── new persona modal ─────────────────────────────────────────────────────────
+function openNewPersonaModal() {
+  document.getElementById('modal-overlay').style.display = 'flex';
+  onLangChange();
+  setTimeout(() => document.getElementById('new-phrase-input').focus(), 50);
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').style.display = 'none';
+  document.getElementById('new-phrase-input').value = '';
+  document.getElementById('modal-error').textContent = '';
+  document.getElementById('variation-list').innerHTML = '';
+  document.getElementById('modal-lang').selectedIndex = 0;
+  onLangChange();
+  const btn = document.getElementById('modal-create-btn');
+  btn.disabled = false; btn.textContent = 'Create';
+}
+
+function onLangChange() {
+  const sel     = document.getElementById('modal-lang');
+  const opt     = sel.options[sel.selectedIndex];
+  const supVar  = opt.dataset.supportsVariations === 'true';
+  const desc    = opt.dataset.description || '';
+  const hint    = document.getElementById('lang-hint');
+  const varSec  = document.getElementById('variation-section');
+  const primLbl = document.getElementById('primary-label');
+  const varHint = document.getElementById('variation-hint');
+
+  hint.textContent = desc;
+  hint.style.display = desc ? 'block' : 'none';
+  varSec.style.display  = supVar ? 'block' : 'none';
+  primLbl.style.display = supVar ? 'inline' : 'none';
+
+  // Populate the recording instruction for the variation hint
+  if (supVar) {
+    varHint.textContent = 'Record yourself naturally cycling through ALL the phrases above in one long audio clip.';
+    varHint.style.display = 'block';
+  } else {
+    varHint.style.display = 'none';
+  }
+}
+
+function modalHasVariations() {
+  return document.getElementById('variation-section').style.display !== 'none';
+}
+
+function addVariationRow(value) {
+  const list = document.getElementById('variation-list');
+  const row  = document.createElement('div');
+  row.className = 'variation-row';
+  row.innerHTML =
+    `<input type="text" class="var-input" placeholder='e.g. billeya' value="${esc(value || '')}">` +
+    `<button class="btn-rm-var" type="button" onclick="this.parentNode.remove()">×</button>`;
+  list.appendChild(row);
+  row.querySelector('input').focus();
+}
+
+async function submitNewPersona() {
+  const phrase = document.getElementById('new-phrase-input').value.trim();
+  if (!phrase) { document.getElementById('new-phrase-input').focus(); return; }
+
+  const sel        = document.getElementById('modal-lang');
+  const language   = sel.value;
+  const variations = Array.from(document.querySelectorAll('#variation-list .var-input'))
+                          .map(i => i.value.trim()).filter(Boolean);
+
+  const btn = document.getElementById('modal-create-btn');
+  btn.disabled = true; btn.textContent = 'Creating…';
+  document.getElementById('modal-error').textContent = '';
+
+  try {
+    const res = await fetch('/api/personas', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ wake_phrase: phrase, language, variations }),
+    });
+    const state = await res.json();
+    if (!res.ok) {
+      document.getElementById('modal-error').textContent = state.error || 'Creation failed.';
+      btn.disabled = false; btn.textContent = 'Create';
+      return;
+    }
+
+    const emptyState = document.querySelector('.empty-state');
+    if (emptyState) emptyState.remove();
+    closeModal();
+    addPersonaPanel(state);
+    switchTab(state.persona_id);
+  } catch (err) {
+    document.getElementById('modal-error').textContent = 'Request failed: ' + err;
+    btn.disabled = false; btn.textContent = 'Create';
+  }
+}
+
+function addPersonaPanel(state) {
+  const pid    = state.persona_id;
+  const newBtn = document.getElementById('tab-new-btn');
+  const tab    = document.createElement('button');
+  tab.className = 'tab-btn';
+  tab.dataset.persona = pid;
+  tab.textContent = state.display_name;
+  tab.onclick = () => switchTab(pid);
+  newBtn.parentNode.insertBefore(tab, newBtn);
+
+  const panels = document.getElementById('tab-panels');
+  const panel  = document.createElement('div');
+  panel.className = 'tab-panel';
+  panel.id = `panel-${pid}`;
+  panel.innerHTML = buildPanelHTML(state);
+  panels.appendChild(panel);
+
+  setupUploadZone(pid, false);
+  if (state.requires_custom_negatives) setupUploadZone(pid, true);
+}
+
+function buildPanelHTML(s) {
+  const pid     = s.persona_id;
+  const hasNeg  = s.requires_custom_negatives;
+  const phrases = (s.target_phrases || []).map(p => `"${esc(p)}"`).join(', ');
+  const phraseLabel = s.target_phrases && s.target_phrases.length > 1
+    ? `phrases: ${phrases}`
+    : `wake phrase: "${esc(s.display_name)}"`;
+
+  const uploadSection = hasNeg ? `
+    <div class="dual-upload">
+      <div>
+        <div class="upload-label"><span class="dot dot-green"></span>Positive Audio (wake words)</div>
+        <div class="drop-zone" id="drop-zone-${pid}">
+          <strong>Drag &amp; drop here</strong>
+          <p>Say the wake phrase variations naturally.</p>
+          <input class="file-input-hidden" id="file-input-${pid}" type="file" multiple accept=".wav,.mp3,.mp4,.m4a,.flac,.ogg">
+        </div>
+      </div>
+      <div>
+        <div class="upload-label"><span class="dot dot-orange"></span>Adversarial Negatives</div>
+        <div class="drop-zone neg" id="drop-zone-neg-${pid}">
+          <strong>Drag &amp; drop here</strong>
+          <p>Similar-sounding words that should NOT trigger.</p>
+          <input class="file-input-hidden" id="file-input-neg-${pid}" type="file" multiple accept=".wav,.mp3,.mp4,.m4a,.flac,.ogg">
+        </div>
+      </div>
+    </div>` : `
+    <div class="drop-zone" id="drop-zone-${pid}">
+      <strong>Drag &amp; drop audio here</strong>
+      <p>or click to browse &nbsp;·&nbsp; .wav .mp3 .mp4 .m4a .flac</p>
+      <input class="file-input-hidden" id="file-input-${pid}" type="file" multiple accept=".wav,.mp3,.mp4,.m4a,.flac,.ogg">
+    </div>`;
+
+  const sliceSection = hasNeg ? `
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <div>
+        <button class="btn btn-purple" id="slice-btn-${pid}" onclick="runSlice('${pid}','positive')">Slice Positive</button>
+        <div class="slice-result" id="slice-result-${pid}" style="display:none"></div>
+      </div>
+      <div>
+        <button class="btn btn-orange" id="slice-neg-btn-${pid}" onclick="runSlice('${pid}','negative')">Slice Adversarial</button>
+        <div class="slice-result neg-result" id="slice-neg-result-${pid}" style="display:none"></div>
+      </div>
+    </div>` : `
+    <button class="btn btn-purple" id="slice-btn-${pid}" onclick="runSlice('${pid}','positive')">Slice files</button>
+    <div class="slice-result" id="slice-result-${pid}" style="display:none"></div>`;
+
+  const negCountStat = hasNeg
+    ? `<div class="stat"><span class="stat-label">Adversarial clips: </span><span class="stat-val" id="neg-count-${pid}">0 custom</span></div>`
+    : '';
+
+  return `
+    <div class="card">
+      <div class="persona-header">
+        <div>
+          <div class="persona-title">${esc(s.display_name)} <span class="lang-badge">${esc(s.language)}</span></div>
+          <div class="persona-phrase">${phraseLabel}</div>
+          <div class="stat-row">
+            <div class="stat"><span class="stat-label">Positive clips: </span><span class="stat-val" id="clip-count-${pid}">0 train / 0 test</span></div>
+            ${negCountStat}
+          </div>
+          <div class="no-model">No training metrics yet.</div>
+        </div>
+        <button class="btn-download" id="dl-btn-${pid}" disabled title="No model trained yet"
+                onclick="window.location='/download/${pid}'">Download Model</button>
+      </div>
+    </div>
+    <div class="card"><h2>1. Upload Recording${hasNeg ? 's' : ''}</h2>${uploadSection}</div>
+    <div class="card">
+      <h2>2. Staged Recordings</h2>
+      ${hasNeg ? `<div class="dual-dz-section">
+        <div><div class="upload-label"><span class="dot dot-green"></span>Positive</div>
+          <ul class="file-list" id="dz-list-${pid}"><li class="empty">None yet.</li></ul></div>
+        <div><div class="upload-label"><span class="dot dot-orange"></span>Adversarial</div>
+          <ul class="file-list" id="dz-neg-list-${pid}"><li class="empty">None yet.</li></ul></div>
+      </div>` : `<ul class="file-list" id="dz-list-${pid}"><li class="empty">No recordings yet — upload one above.</li></ul>`}
+    </div>
+    <div class="card">
+      <h2>3. Slice into Clips</h2>
+      <details><summary>Slicer settings</summary>
+        <div class="params-grid">
+          <div class="param"><label>Silence threshold (dBFS)</label><input type="number" id="silence_thresh-${pid}" value="-40" max="0"></div>
+          <div class="param"><label>Min silence (ms)</label><input type="number" id="min_silence-${pid}" value="700" min="100"></div>
+          <div class="param"><label>Min clip (ms)</label><input type="number" id="min_clip-${pid}" value="500" min="100"></div>
+          <div class="param"><label>Max clip (ms)</label><input type="number" id="max_clip-${pid}" value="3000" min="500"></div>
+          <div class="param"><label>Keep silence (ms)</label><input type="number" id="keep_silence-${pid}" value="200" min="0"></div>
+        </div>
+      </details>
+      ${sliceSection}
+      <div class="preview-row" id="preview-${pid}"></div>
+    </div>
+    <div class="card">
+      <h2>4. Train Model</h2>
+      <p style="font-size:.81rem;color:#777;margin:0 0 12px">Takes ~6 minutes on CPU.</p>
+      <button class="btn btn-green" id="train-btn-${pid}" disabled title="Slice some recordings first"
+              onclick="startTraining('${pid}')">Start training</button>
+      <div class="train-log" id="train-log-${pid}"></div>
+      <div class="metrics-box" id="metrics-box-${pid}"></div>
+    </div>
+    <div class="card"><h2>5. Model History</h2><p class="empty">No trained models yet.</p></div>`;
+}
+
+// ── utility ───────────────────────────────────────────────────────────────────
+function esc(str) {
+  return String(str)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+// ── init ──────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.tab-panel').forEach(panel => {
+    const pid = panel.id.replace('panel-', '');
+    setupUploadZone(pid, false);
+    // Set up negative zone if it exists in the DOM
+    if (document.getElementById(`drop-zone-neg-${pid}`)) {
+      setupUploadZone(pid, true);
+    }
+  });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,65 @@
+# ── Virtual environments ────────────────────────────────────────────────────────
+venv/
+venv_stable/
+.venv/
+
+# ── openWakeWord clone (fetched dynamically by install.sh) ─────────────────────
+openWakeWord/
+
+# ── Large training data (download via install.sh) ──────────────────────────────
+data/negatives/*.npy
+data/rir/*
+!data/rir/.gitkeep
+
+# ── Trained model artefacts and per-persona dirs (created by user at runtime) ──
+models/*/
+models/*.onnx
+models/*.onnx.data
+models/*.npy
+models/*.log
+
+# ── Leftover per-persona YAML configs ─────────────────────────────────────────
+*_config.yaml
+
+# ── Piper TTS (downloaded and extracted separately) ───────────────────────────
+piper/
+piper_amd64.tar.gz
+piper-sample-generator/
+voices/*.onnx
+
+# ── Generated TTS augmentation clips (reproducible, not source recordings) ─────
+data/*/synth_*.wav
+
+# ── Claude Code local config ───────────────────────────────────────────────────
+.claude/
+
+# ── Drop-zone uploads (user audio, not committed) ──────────────────────────────
+data/dropzone/*
+!data/dropzone/.gitkeep
+
+# ── Python cache ───────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+
+# ── Secrets and local config ───────────────────────────────────────────────────
+.env
+*.env
+
+# ── Training logs and audit output ─────────────────────────────────────────────
+training_run_*.log
+*_training_run_*.log
+training.log
+audit_*.txt
+audit_output.txt
+torch_audiomentations_version.txt
+
+# ── YAML config backups created during development ─────────────────────────────
+*.bak_*
+
+# ── Misc ───────────────────────────────────────────────────────────────────────
+*.egg-info/
+dist/
+build/
+.DS_Store
+Thumbs.db
