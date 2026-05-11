@@ -27,6 +27,9 @@ Train custom wake words in any language directly from your browser: record phras
 
 ---
 
+> [!IMPORTANT]
+> **Windows Users:** These commands must be run inside your **WSL/Ubuntu terminal**, NOT PowerShell or CMD.
+
 ## Installation
 
 ```bash
