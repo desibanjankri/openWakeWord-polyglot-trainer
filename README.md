@@ -33,8 +33,8 @@ Train custom wake words in any language directly from your browser: record phras
 ## Installation
 
 ```bash
-git clone https://github.com/<your-username>/openWakeWord-WSL-Factory.git
-cd openWakeWord-WSL-Factory
+git clone https://github.com/desibanjankri/openWakeWord-polyglot-trainer.git
+cd openWakeWord-polyglot-trainer
 bash install.sh
 ```
 
